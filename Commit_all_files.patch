@@ -1,0 +1,1397 @@
+Index: app/src/main/java/pl/arcube/arcube/CameraPreview.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/pl/arcube/arcube/CameraPreview.java	(revision )
++++ app/src/main/java/pl/arcube/arcube/CameraPreview.java	(revision )
+@@ -0,0 +1,88 @@
++package pl.arcube.arcube;
++
++import android.app.Activity;
++import android.hardware.Camera;
++import android.util.Log;
++import android.view.Surface;
++import android.view.SurfaceHolder;
++import android.view.SurfaceView;
++
++import java.io.IOException;
++import java.util.List;
++
++import static android.content.ContentValues.TAG;
++
++/**
++ * Created by Maciej Szalek on 2018-09-12.
++ */
++
++public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback{
++
++    private SurfaceHolder mHolder;
++    private Camera mCamera;
++    boolean isPreviewRunning = false;
++    Camera.PreviewCallback callback;
++    Activity mActivity;
++
++    public CameraPreview( Activity activity){
++        super(activity);
++
++        mActivity = activity;
++        mHolder = getHolder();
++        mHolder.addCallback(this);
++        mHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
++    }
++
++    public void surfaceCreated(SurfaceHolder holder) {
++        synchronized (this) {
++            mCamera = Camera.open();
++
++            Camera.CameraInfo cameraInfo = new Camera.CameraInfo();
++            Camera.getCameraInfo(Camera.CameraInfo.CAMERA_FACING_BACK, cameraInfo);
++            int rotation = mActivity.getWindowManager().getDefaultDisplay().getRotation();
++            int degrees = 0;
++            switch (rotation){
++                case Surface.ROTATION_0: degrees = 0; break;
++                case Surface.ROTATION_90: degrees = 90; break;
++                case Surface.ROTATION_180: degrees  = 180; break;
++                case Surface.ROTATION_270: degrees = 270; break;
++            }
++            mCamera.setDisplayOrientation((cameraInfo.orientation - degrees + 360) % 360);
++
++            try {
++                mCamera.setPreviewDisplay(holder);
++            } catch (IOException e) {
++                Log.e(TAG, "Error setting camera preview: " + e.getMessage());
++            }
++            mCamera.startPreview();
++        }
++    }
++    public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
++        Camera.Parameters params = mCamera.getParameters();
++        List<Camera.Size> prevSizes = params.getSupportedPreviewSizes();
++        for (Camera.Size s : prevSizes ){
++            if((s.height <= height) && (s.width <= width)){
++                params.setPreviewSize(s.width, s.height);
++            }
++        }
++        mCamera.setParameters(params);
++        mCamera.startPreview();
++    }
++    public void surfaceDestroyed(SurfaceHolder holder) {
++        synchronized (this) {
++            try{
++                if (mCamera != null) {
++                    mCamera.stopPreview();
++                    isPreviewRunning = false;
++                    mCamera.release();
++                }
++            }catch(Exception e){
++                Log.e("Camera", e.getMessage());
++            }
++        }
++    }
++    public void onPreviewFrame(byte[] arg0, Camera arg1){
++        if(callback != null)
++            callback.onPreviewFrame(arg0, arg1);
++    }
++}
+\ No newline at end of file
+Index: app/proguard-rules.pro
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/proguard-rules.pro	(revision )
++++ app/proguard-rules.pro	(revision )
+@@ -0,0 +1,25 @@
++# Add project specific ProGuard rules here.
++# By default, the flags in this file are appended to flags specified
++# in C:\Android_SDK/tools/proguard/proguard-android.txt
++# You can edit the include path and order by changing the proguardFiles
++# directive in build.gradle.
++#
++# For more details, see
++#   http://developer.android.com/guide/developing/tools/proguard.html
++
++# Add any project specific keep options here:
++
++# If your project uses WebView with JS, uncomment the following
++# and specify the fully qualified class name to the JavaScript interface
++# class:
++#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
++#   public *;
++#}
++
++# Uncomment this to preserve the line number information for
++# debugging stack traces.
++#-keepattributes SourceFile,LineNumberTable
++
++# If you keep the line number information, uncomment this to
++# hide the original source file name.
++#-renamesourcefileattribute SourceFile
+Index: .gitignore
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- .gitignore	(revision )
++++ .gitignore	(revision )
+@@ -0,0 +1,9 @@
++*.iml
++.gradle
++/local.properties
++/.idea/workspace.xml
++/.idea/libraries
++.DS_Store
++/build
++/captures
++.externalNativeBuild
+Index: app/src/main/res/layout/start_activity.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/res/layout/start_activity.xml	(revision )
++++ app/src/main/res/layout/start_activity.xml	(revision )
+@@ -0,0 +1,42 @@
++<?xml version="1.0" encoding="utf-8"?>
++<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
++    xmlns:tools="http://schemas.android.com/tools"
++    android:layout_width="match_parent"
++    android:layout_height="match_parent"
++    android:background="@color/background"
++    tools:context="pl.arcube.arcube.StartActivity">
++
++    <ImageView
++        android:id="@+id/set_image_view"
++        android:layout_margin="8sp"
++        android:layout_width="match_parent"
++        android:layout_height="match_parent"
++        android:layout_above="@+id/set_image_button"/>
++
++    <TextView
++        android:id="@+id/set_image_textView"
++        android:layout_width="wrap_content"
++        android:layout_height="wrap_content"
++        android:layout_margin="16sp"
++        android:layout_above="@+id/set_image_button"
++        android:layout_centerHorizontal="true"
++        android:text="@string/image_direction"/>
++
++    <Button
++        android:id="@+id/set_image_button"
++        android:layout_width="wrap_content"
++        android:layout_height="wrap_content"
++        android:layout_above="@+id/start_button"
++        android:layout_centerHorizontal="true"
++        android:text="@string/set_image"/>
++
++    <Button
++        android:id="@+id/start_button"
++        android:layout_width="wrap_content"
++        android:layout_height="wrap_content"
++        android:layout_marginBottom="8sp"
++        android:layout_centerHorizontal="true"
++        android:layout_alignParentBottom="true"
++        android:text="@string/start"/>
++
++</RelativeLayout>
+Index: gradle/wrapper/gradle-wrapper.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1250
+===================================================================
+--- gradle/wrapper/gradle-wrapper.properties	(revision )
++++ gradle/wrapper/gradle-wrapper.properties	(revision )
+@@ -0,0 +1,6 @@
++#Tue Nov 06 12:38:59 CET 2018
++distributionBase=GRADLE_USER_HOME
++distributionPath=wrapper/dists
++zipStoreBase=GRADLE_USER_HOME
++zipStorePath=wrapper/dists
++distributionUrl=https\://services.gradle.org/distributions/gradle-3.3-all.zip
+Index: app/src/main/java/pl/arcube/arcube/StartActivity.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/pl/arcube/arcube/StartActivity.java	(revision )
++++ app/src/main/java/pl/arcube/arcube/StartActivity.java	(revision )
+@@ -0,0 +1,89 @@
++package pl.arcube.arcube;
++
++import android.content.Intent;
++import android.graphics.Bitmap;
++import android.graphics.BitmapFactory;
++import android.net.Uri;
++import android.support.v7.app.AppCompatActivity;
++import android.os.Bundle;
++import android.text.TextUtils;
++import android.view.View;
++import android.widget.Button;
++import android.widget.ImageView;
++import android.widget.TextView;
++import android.widget.Toast;
++
++public class StartActivity extends AppCompatActivity {
++
++    private ImageView imageView;
++    private TextView imageDirection;
++    public Button setImageButton;
++    public Button startButton;
++    public Uri uri;
++    private String path;
++    private final int PICK_IMAGE_REQUEST = 1;
++
++    private RealPathUtils realPathUtils;
++
++    @Override
++    protected void onCreate(Bundle savedInstanceState) {
++        super.onCreate(savedInstanceState);
++        setContentView(R.layout.start_activity);
++
++        imageView = findViewById(R.id.set_image_view);
++        imageDirection = findViewById(R.id.set_image_textView);
++        setImageButton = findViewById(R.id.set_image_button);
++        startButton = findViewById(R.id.start_button);
++
++        realPathUtils = new RealPathUtils();
++
++        setImageButton.setOnClickListener(new View.OnClickListener() {
++            @Override
++            public void onClick(View v) {
++                goToGalleryActivity();
++            }
++        });
++
++        startButton.setOnClickListener(new View.OnClickListener() {
++            @Override
++            public void onClick(View v) {
++                if(TextUtils.isEmpty(path)){
++                    Toast.makeText(StartActivity.this, "Image isn't selected",
++                            Toast.LENGTH_SHORT).show();
++                }else{
++                    goToArActivity();
++                }
++            }
++        });
++    }
++
++    public void goToArActivity(){
++        Intent intent = new Intent(StartActivity.this, ArActivity.class);
++        intent.putExtra("PATH", path);
++        startActivity(intent);
++    }
++    public void goToGalleryActivity(){
++        Intent intent = new Intent();
++        intent.setType("image/*");
++        intent.setAction(Intent.ACTION_GET_CONTENT);
++        startActivityForResult(intent, PICK_IMAGE_REQUEST);
++    }
++    @Override
++    protected void onActivityResult(int requestCode, int resultCode, Intent data){
++        super.onActivityResult(requestCode, resultCode, data);
++        if(resultCode == RESULT_OK){
++            if(requestCode == PICK_IMAGE_REQUEST){
++                uri = data.getData();
++                path = realPathUtils.getRealPathFromURI(StartActivity.this, uri);
++
++                BitmapFactory.Options options = new BitmapFactory.Options();
++                options.inJustDecodeBounds = false;
++                options.inSampleSize = 5;
++                Bitmap bitmap = BitmapFactory.decodeFile(path, options);
++                imageView.setImageBitmap(bitmap);
++                imageDirection.setText(path);
++            }
++
++        }
++    }
++}
+Index: .idea/compiler.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- .idea/compiler.xml	(revision )
++++ .idea/compiler.xml	(revision )
+@@ -0,0 +1,22 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project version="4">
++  <component name="CompilerConfiguration">
++    <resourceExtensions />
++    <wildcardResourcePatterns>
++      <entry name="!?*.java" />
++      <entry name="!?*.form" />
++      <entry name="!?*.class" />
++      <entry name="!?*.groovy" />
++      <entry name="!?*.scala" />
++      <entry name="!?*.flex" />
++      <entry name="!?*.kt" />
++      <entry name="!?*.clj" />
++      <entry name="!?*.aj" />
++    </wildcardResourcePatterns>
++    <annotationProcessing>
++      <profile default="true" name="Default" enabled="false">
++        <processorPath useClasspath="true" />
++      </profile>
++    </annotationProcessing>
++  </component>
++</project>
+\ No newline at end of file
+Index: gradlew.bat
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- gradlew.bat	(revision )
++++ gradlew.bat	(revision )
+@@ -0,0 +1,90 @@
++@if "%DEBUG%" == "" @echo off
++@rem ##########################################################################
++@rem
++@rem  Gradle startup script for Windows
++@rem
++@rem ##########################################################################
++
++@rem Set local scope for the variables with windows NT shell
++if "%OS%"=="Windows_NT" setlocal
++
++@rem Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS to pass JVM options to this script.
++set DEFAULT_JVM_OPTS=
++
++set DIRNAME=%~dp0
++if "%DIRNAME%" == "" set DIRNAME=.
++set APP_BASE_NAME=%~n0
++set APP_HOME=%DIRNAME%
++
++@rem Find java.exe
++if defined JAVA_HOME goto findJavaFromJavaHome
++
++set JAVA_EXE=java.exe
++%JAVA_EXE% -version >NUL 2>&1
++if "%ERRORLEVEL%" == "0" goto init
++
++echo.
++echo ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH.
++echo.
++echo Please set the JAVA_HOME variable in your environment to match the
++echo location of your Java installation.
++
++goto fail
++
++:findJavaFromJavaHome
++set JAVA_HOME=%JAVA_HOME:"=%
++set JAVA_EXE=%JAVA_HOME%/bin/java.exe
++
++if exist "%JAVA_EXE%" goto init
++
++echo.
++echo ERROR: JAVA_HOME is set to an invalid directory: %JAVA_HOME%
++echo.
++echo Please set the JAVA_HOME variable in your environment to match the
++echo location of your Java installation.
++
++goto fail
++
++:init
++@rem Get command-line arguments, handling Windowz variants
++
++if not "%OS%" == "Windows_NT" goto win9xME_args
++if "%@eval[2+2]" == "4" goto 4NT_args
++
++:win9xME_args
++@rem Slurp the command line arguments.
++set CMD_LINE_ARGS=
++set _SKIP=2
++
++:win9xME_args_slurp
++if "x%~1" == "x" goto execute
++
++set CMD_LINE_ARGS=%*
++goto execute
++
++:4NT_args
++@rem Get arguments from the 4NT Shell from JP Software
++set CMD_LINE_ARGS=%$
++
++:execute
++@rem Setup the command line
++
++set CLASSPATH=%APP_HOME%\gradle\wrapper\gradle-wrapper.jar
++
++@rem Execute Gradle
++"%JAVA_EXE%" %DEFAULT_JVM_OPTS% %JAVA_OPTS% %GRADLE_OPTS% "-Dorg.gradle.appname=%APP_BASE_NAME%" -classpath "%CLASSPATH%" org.gradle.wrapper.GradleWrapperMain %CMD_LINE_ARGS%
++
++:end
++@rem End local scope for the variables with windows NT shell
++if "%ERRORLEVEL%"=="0" goto mainEnd
++
++:fail
++rem Set variable GRADLE_EXIT_CONSOLE if you need the _script_ return code instead of
++rem the _cmd.exe /c_ return code!
++if  not "" == "%GRADLE_EXIT_CONSOLE%" exit 1
++exit /b 1
++
++:mainEnd
++if "%OS%"=="Windows_NT" endlocal
++
++:omega
+Index: app/src/androidTest/java/pl/arcube/arcube/ExampleInstrumentedTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/androidTest/java/pl/arcube/arcube/ExampleInstrumentedTest.java	(revision )
++++ app/src/androidTest/java/pl/arcube/arcube/ExampleInstrumentedTest.java	(revision )
+@@ -0,0 +1,26 @@
++package pl.arcube.arcube;
++
++import android.content.Context;
++import android.support.test.InstrumentationRegistry;
++import android.support.test.runner.AndroidJUnit4;
++
++import org.junit.Test;
++import org.junit.runner.RunWith;
++
++import static org.junit.Assert.*;
++
++/**
++ * Instrumentation test, which will execute on an Android device.
++ *
++ * @see <a href="http://d.android.com/tools/testing">Testing documentation</a>
++ */
++@RunWith(AndroidJUnit4.class)
++public class ExampleInstrumentedTest {
++    @Test
++    public void useAppContext() throws Exception {
++        // Context of the app under test.
++        Context appContext = InstrumentationRegistry.getTargetContext();
++
++        assertEquals("pl.arcube.arcube", appContext.getPackageName());
++    }
++}
+Index: app/src/main/java/pl/arcube/arcube/GLRenderer.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/pl/arcube/arcube/GLRenderer.java	(revision )
++++ app/src/main/java/pl/arcube/arcube/GLRenderer.java	(revision )
+@@ -0,0 +1,80 @@
++package pl.arcube.arcube;
++
++import android.content.Context;
++import android.opengl.GLSurfaceView;
++import android.opengl.GLU;
++
++import javax.microedition.khronos.egl.EGLConfig;
++import javax.microedition.khronos.opengles.GL10;
++import javax.microedition.khronos.opengles.GL11;
++
++/**
++ * Created by Maciej Szalek on 2018-09-12.
++ */
++
++public class GLRenderer implements GLSurfaceView.Renderer {
++    private Cube cube;
++    private boolean mTranslucentBackground;
++    private float angleCube = 0;     // rotational angle in degree for cube
++    private float speedCube = 0.5f;
++
++
++    public GLRenderer( boolean useTranslucentBackground,Context context, PhotoImage photoImage) {
++        mTranslucentBackground = useTranslucentBackground;
++        cube = new Cube(context, photoImage);
++    }
++
++    // Call back when the surface is first created or re-created.
++    @Override
++    public void onSurfaceCreated(GL10 gl, EGLConfig config) {
++
++        gl.glEnable(GL11.GL_CULL_FACE);   // Enables depth-buffer for hidden surface removal
++        gl.glDepthFunc(GL11.GL_LEQUAL);    // The type of depth testing to do
++        gl.glHint(GL11.GL_PERSPECTIVE_CORRECTION_HINT, GL11.GL_FASTEST);  // nice perspective view
++        gl.glShadeModel(GL11.GL_SMOOTH);   // Enable smooth shading of color
++        gl.glDisable(GL11.GL_DITHER);      // Disable dithering for better performance
++
++
++        // Setup Texture, each time the surface is created
++        cube.loadTexture(gl);             // Load images into textures
++        gl.glEnable(GL10.GL_TEXTURE_2D);  // Enable texture
++    }
++
++    // Call back after onSurfaceCreated() or whenever the window's size changes
++    public void onSurfaceChanged(GL10 gl, int width, int height) {
++
++        // Set the viewport (display area) to cover the entire window
++        gl.glViewport(0, 0, width, height);
++
++        if (height == 0) height = 1;   // To prevent divide by zero
++        // Perspective projection matrix
++        float ratio = (float)width / height;
++
++        // Setup perspective projection, with aspect ratio matches viewport
++        gl.glMatrixMode(GL11.GL_PROJECTION); // Select projection matrix
++        gl.glLoadIdentity();                 // Reset projection matrix
++        // Use perspective projection
++        GLU.gluPerspective(gl, 45, ratio, 0.1f, 100.f);
++
++        gl.glMatrixMode(GL10.GL_MODELVIEW);  // Select model-view matrix
++        gl.glLoadIdentity();
++    }
++
++    // Call back to draw the current frame.
++    public void onDrawFrame(GL10 gl) {
++        // Clear color and depth buffer
++        gl.glClearColor(0.0f , 0.0f, 0.0f, 0.5f);
++        gl.glClear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
++        // ----- Render the Cube -----
++        gl.glMatrixMode(GL11.GL_MODELVIEW);
++        gl.glLoadIdentity();                  // Reset the model-view matrix
++
++        gl.glTranslatef(0.0f, 0.0f, -8.0f);  // Translate into the screen
++
++        gl.glRotatef(angleCube, 0.15f, 1.0f, 0.3f); // Rotate
++        cube.draw(gl);
++
++        // Update the rotational angle after each refresh.
++        angleCube += speedCube;
++    }
++}
+Index: app/src/main/res/values/strings.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/res/values/strings.xml	(revision )
++++ app/src/main/res/values/strings.xml	(revision )
+@@ -0,0 +1,6 @@
++<resources>
++    <string name="app_name">ArCube</string>
++    <string name="image_direction">Image direction</string>
++    <string name="set_image">set image</string>
++    <string name="start">start</string>
++</resources>
+Index: gradlew
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- gradlew	(revision )
++++ gradlew	(revision )
+@@ -0,0 +1,160 @@
++#!/usr/bin/env bash
++
++##############################################################################
++##
++##  Gradle start up script for UN*X
++##
++##############################################################################
++
++# Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS to pass JVM options to this script.
++DEFAULT_JVM_OPTS=""
++
++APP_NAME="Gradle"
++APP_BASE_NAME=`basename "$0"`
++
++# Use the maximum available, or set MAX_FD != -1 to use that value.
++MAX_FD="maximum"
++
++warn ( ) {
++    echo "$*"
++}
++
++die ( ) {
++    echo
++    echo "$*"
++    echo
++    exit 1
++}
++
++# OS specific support (must be 'true' or 'false').
++cygwin=false
++msys=false
++darwin=false
++case "`uname`" in
++  CYGWIN* )
++    cygwin=true
++    ;;
++  Darwin* )
++    darwin=true
++    ;;
++  MINGW* )
++    msys=true
++    ;;
++esac
++
++# Attempt to set APP_HOME
++# Resolve links: $0 may be a link
++PRG="$0"
++# Need this for relative symlinks.
++while [ -h "$PRG" ] ; do
++    ls=`ls -ld "$PRG"`
++    link=`expr "$ls" : '.*-> \(.*\)$'`
++    if expr "$link" : '/.*' > /dev/null; then
++        PRG="$link"
++    else
++        PRG=`dirname "$PRG"`"/$link"
++    fi
++done
++SAVED="`pwd`"
++cd "`dirname \"$PRG\"`/" >/dev/null
++APP_HOME="`pwd -P`"
++cd "$SAVED" >/dev/null
++
++CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
++
++# Determine the Java command to use to start the JVM.
++if [ -n "$JAVA_HOME" ] ; then
++    if [ -x "$JAVA_HOME/jre/sh/java" ] ; then
++        # IBM's JDK on AIX uses strange locations for the executables
++        JAVACMD="$JAVA_HOME/jre/sh/java"
++    else
++        JAVACMD="$JAVA_HOME/bin/java"
++    fi
++    if [ ! -x "$JAVACMD" ] ; then
++        die "ERROR: JAVA_HOME is set to an invalid directory: $JAVA_HOME
++
++Please set the JAVA_HOME variable in your environment to match the
++location of your Java installation."
++    fi
++else
++    JAVACMD="java"
++    which java >/dev/null 2>&1 || die "ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH.
++
++Please set the JAVA_HOME variable in your environment to match the
++location of your Java installation."
++fi
++
++# Increase the maximum file descriptors if we can.
++if [ "$cygwin" = "false" -a "$darwin" = "false" ] ; then
++    MAX_FD_LIMIT=`ulimit -H -n`
++    if [ $? -eq 0 ] ; then
++        if [ "$MAX_FD" = "maximum" -o "$MAX_FD" = "max" ] ; then
++            MAX_FD="$MAX_FD_LIMIT"
++        fi
++        ulimit -n $MAX_FD
++        if [ $? -ne 0 ] ; then
++            warn "Could not set maximum file descriptor limit: $MAX_FD"
++        fi
++    else
++        warn "Could not query maximum file descriptor limit: $MAX_FD_LIMIT"
++    fi
++fi
++
++# For Darwin, add options to specify how the application appears in the dock
++if $darwin; then
++    GRADLE_OPTS="$GRADLE_OPTS \"-Xdock:name=$APP_NAME\" \"-Xdock:icon=$APP_HOME/media/gradle.icns\""
++fi
++
++# For Cygwin, switch paths to Windows format before running java
++if $cygwin ; then
++    APP_HOME=`cygpath --path --mixed "$APP_HOME"`
++    CLASSPATH=`cygpath --path --mixed "$CLASSPATH"`
++    JAVACMD=`cygpath --unix "$JAVACMD"`
++
++    # We build the pattern for arguments to be converted via cygpath
++    ROOTDIRSRAW=`find -L / -maxdepth 1 -mindepth 1 -type d 2>/dev/null`
++    SEP=""
++    for dir in $ROOTDIRSRAW ; do
++        ROOTDIRS="$ROOTDIRS$SEP$dir"
++        SEP="|"
++    done
++    OURCYGPATTERN="(^($ROOTDIRS))"
++    # Add a user-defined pattern to the cygpath arguments
++    if [ "$GRADLE_CYGPATTERN" != "" ] ; then
++        OURCYGPATTERN="$OURCYGPATTERN|($GRADLE_CYGPATTERN)"
++    fi
++    # Now convert the arguments - kludge to limit ourselves to /bin/sh
++    i=0
++    for arg in "$@" ; do
++        CHECK=`echo "$arg"|egrep -c "$OURCYGPATTERN" -`
++        CHECK2=`echo "$arg"|egrep -c "^-"`                                 ### Determine if an option
++
++        if [ $CHECK -ne 0 ] && [ $CHECK2 -eq 0 ] ; then                    ### Added a condition
++            eval `echo args$i`=`cygpath --path --ignore --mixed "$arg"`
++        else
++            eval `echo args$i`="\"$arg\""
++        fi
++        i=$((i+1))
++    done
++    case $i in
++        (0) set -- ;;
++        (1) set -- "$args0" ;;
++        (2) set -- "$args0" "$args1" ;;
++        (3) set -- "$args0" "$args1" "$args2" ;;
++        (4) set -- "$args0" "$args1" "$args2" "$args3" ;;
++        (5) set -- "$args0" "$args1" "$args2" "$args3" "$args4" ;;
++        (6) set -- "$args0" "$args1" "$args2" "$args3" "$args4" "$args5" ;;
++        (7) set -- "$args0" "$args1" "$args2" "$args3" "$args4" "$args5" "$args6" ;;
++        (8) set -- "$args0" "$args1" "$args2" "$args3" "$args4" "$args5" "$args6" "$args7" ;;
++        (9) set -- "$args0" "$args1" "$args2" "$args3" "$args4" "$args5" "$args6" "$args7" "$args8" ;;
++    esac
++fi
++
++# Split up the JVM_OPTS And GRADLE_OPTS values into an array, following the shell quoting and substitution rules
++function splitJvmOpts() {
++    JVM_OPTS=("$@")
++}
++eval splitJvmOpts $DEFAULT_JVM_OPTS $JAVA_OPTS $GRADLE_OPTS
++JVM_OPTS[${#JVM_OPTS[*]}]="-Dorg.gradle.appname=$APP_BASE_NAME"
++
++exec "$JAVACMD" "${JVM_OPTS[@]}" -classpath "$CLASSPATH" org.gradle.wrapper.GradleWrapperMain "$@"
+Index: app/.gitignore
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/.gitignore	(revision )
++++ app/.gitignore	(revision )
+@@ -0,0 +1,1 @@
++/build
+Index: settings.gradle
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- settings.gradle	(revision )
++++ settings.gradle	(revision )
+@@ -0,0 +1,1 @@
++include ':app'
+Index: app/src/main/res/values/colors.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/res/values/colors.xml	(revision )
++++ app/src/main/res/values/colors.xml	(revision )
+@@ -0,0 +1,7 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <color name="colorPrimary">#3F51B5</color>
++    <color name="colorPrimaryDark">#303F9F</color>
++    <color name="colorAccent">#FF4081</color>
++    <color name="background">#9fa3a2</color>
++</resources>
+Index: app/src/main/java/pl/arcube/arcube/PhotoImage.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/pl/arcube/arcube/PhotoImage.java	(revision )
++++ app/src/main/java/pl/arcube/arcube/PhotoImage.java	(revision )
+@@ -0,0 +1,19 @@
++package pl.arcube.arcube;
++
++
++/**
++ * Created by MaciejSzalek on 2018-09-12.
++ */
++
++public class PhotoImage {
++    String photoImage;
++
++    PhotoImage(){
++    }
++    public String getPhotoImage(){
++        return photoImage;
++    }
++    public void setPhotoImage(String photoImage){
++        this.photoImage = photoImage;
++    }
++}
+Index: app/build.gradle
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/build.gradle	(revision )
++++ app/build.gradle	(revision )
+@@ -0,0 +1,30 @@
++apply plugin: 'com.android.application'
++
++android {
++    compileSdkVersion 27
++    buildToolsVersion "27.0.3"
++    defaultConfig {
++        applicationId "pl.arcube.arcube"
++        minSdkVersion 19
++        targetSdkVersion 27
++        versionCode 1
++        versionName "1.0"
++        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
++    }
++    buildTypes {
++        release {
++            minifyEnabled false
++            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
++        }
++    }
++}
++
++dependencies {
++    compile fileTree(dir: 'libs', include: ['*.jar'])
++    androidTestCompile('com.android.support.test.espresso:espresso-core:2.2.2', {
++        exclude group: 'com.android.support', module: 'support-annotations'
++    })
++    compile 'com.android.support:appcompat-v7:27.0.2'
++    compile 'com.android.support.constraint:constraint-layout:1.0.2'
++    testCompile 'junit:junit:4.12'
++}
+Index: .idea/copyright/profiles_settings.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- .idea/copyright/profiles_settings.xml	(revision )
++++ .idea/copyright/profiles_settings.xml	(revision )
+@@ -0,0 +1,3 @@
++<component name="CopyrightManager">
++  <settings default="" />
++</component>
+\ No newline at end of file
+Index: .idea/misc.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- .idea/misc.xml	(revision )
++++ .idea/misc.xml	(revision )
+@@ -0,0 +1,46 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project version="4">
++  <component name="EntryPointsManager">
++    <entry_points version="2.0" />
++  </component>
++  <component name="NullableNotNullManager">
++    <option name="myDefaultNullable" value="android.support.annotation.Nullable" />
++    <option name="myDefaultNotNull" value="android.support.annotation.NonNull" />
++    <option name="myNullables">
++      <value>
++        <list size="4">
++          <item index="0" class="java.lang.String" itemvalue="org.jetbrains.annotations.Nullable" />
++          <item index="1" class="java.lang.String" itemvalue="javax.annotation.Nullable" />
++          <item index="2" class="java.lang.String" itemvalue="edu.umd.cs.findbugs.annotations.Nullable" />
++          <item index="3" class="java.lang.String" itemvalue="android.support.annotation.Nullable" />
++        </list>
++      </value>
++    </option>
++    <option name="myNotNulls">
++      <value>
++        <list size="4">
++          <item index="0" class="java.lang.String" itemvalue="org.jetbrains.annotations.NotNull" />
++          <item index="1" class="java.lang.String" itemvalue="javax.annotation.Nonnull" />
++          <item index="2" class="java.lang.String" itemvalue="edu.umd.cs.findbugs.annotations.NonNull" />
++          <item index="3" class="java.lang.String" itemvalue="android.support.annotation.NonNull" />
++        </list>
++      </value>
++    </option>
++  </component>
++  <component name="ProjectLevelVcsManager" settingsEditedManually="false">
++    <OptionsSetting value="true" id="Add" />
++    <OptionsSetting value="true" id="Remove" />
++    <OptionsSetting value="true" id="Checkout" />
++    <OptionsSetting value="true" id="Update" />
++    <OptionsSetting value="true" id="Status" />
++    <OptionsSetting value="true" id="Edit" />
++    <ConfirmationsSetting value="0" id="Add" />
++    <ConfirmationsSetting value="0" id="Remove" />
++  </component>
++  <component name="ProjectRootManager" version="2" languageLevel="JDK_1_7" default="true" assert-keyword="true" jdk-15="true" project-jdk-name="1.8 (1)" project-jdk-type="JavaSDK">
++    <output url="file://$PROJECT_DIR$/build/classes" />
++  </component>
++  <component name="ProjectType">
++    <option name="id" value="Android" />
++  </component>
++</project>
+\ No newline at end of file
+Index: app/src/main/res/layout/ar_actvity.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/res/layout/ar_actvity.xml	(revision )
++++ app/src/main/res/layout/ar_actvity.xml	(revision )
+@@ -0,0 +1,15 @@
++<?xml version="1.0" encoding="utf-8"?>
++<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
++    xmlns:tools="http://schemas.android.com/tools"
++    android:layout_width="match_parent"
++    android:layout_height="match_parent"
++    tools:context="pl.arcube.arcube.ArActivity"
++    android:background="@color/background"
++    android:id="@+id/ar_activity_layout">
++
++    <android.opengl.GLSurfaceView
++        android:id="@+id/gl_surface_view"
++        android:layout_width="wrap_content"
++        android:layout_height="wrap_content"/>
++
++</RelativeLayout>
+Index: app/src/test/java/pl/arcube/arcube/ExampleUnitTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/test/java/pl/arcube/arcube/ExampleUnitTest.java	(revision )
++++ app/src/test/java/pl/arcube/arcube/ExampleUnitTest.java	(revision )
+@@ -0,0 +1,17 @@
++package pl.arcube.arcube;
++
++import org.junit.Test;
++
++import static org.junit.Assert.*;
++
++/**
++ * Example local unit test, which will execute on the development machine (host).
++ *
++ * @see <a href="http://d.android.com/tools/testing">Testing documentation</a>
++ */
++public class ExampleUnitTest {
++    @Test
++    public void addition_isCorrect() throws Exception {
++        assertEquals(4, 2 + 2);
++    }
++}
+\ No newline at end of file
+Index: .idea/runConfigurations.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- .idea/runConfigurations.xml	(revision )
++++ .idea/runConfigurations.xml	(revision )
+@@ -0,0 +1,12 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project version="4">
++  <component name="RunConfigurationProducerService">
++    <option name="ignoredProducers">
++      <set>
++        <option value="org.jetbrains.plugins.gradle.execution.test.runner.AllInPackageGradleConfigurationProducer" />
++        <option value="org.jetbrains.plugins.gradle.execution.test.runner.TestClassGradleConfigurationProducer" />
++        <option value="org.jetbrains.plugins.gradle.execution.test.runner.TestMethodGradleConfigurationProducer" />
++      </set>
++    </option>
++  </component>
++</project>
+\ No newline at end of file
+Index: app/src/main/java/pl/arcube/arcube/RealPathUtils.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/pl/arcube/arcube/RealPathUtils.java	(revision )
++++ app/src/main/java/pl/arcube/arcube/RealPathUtils.java	(revision )
+@@ -0,0 +1,37 @@
++package pl.arcube.arcube;
++
++import android.content.Context;
++import android.database.Cursor;
++import android.net.Uri;
++import android.provider.DocumentsContract;
++import android.provider.MediaStore;
++
++/**
++ * Created by Maciej Szalek on 2018-09-12.
++ */
++
++public class RealPathUtils {
++
++    public RealPathUtils(){}
++
++    public String getRealPathFromURI(Context context, Uri uri){
++        String filePath = "";
++        String wholeID = DocumentsContract.getDocumentId(uri);
++        String id = wholeID.split(":")[1];
++
++        String[] column = {MediaStore.Images.Media.DATA};
++        String selection = MediaStore.Images.Media._ID + "=?";
++        String[] selectionArgs = {id};
++
++        Cursor cursor = context.getContentResolver()
++                .query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
++                        column, selection, selectionArgs, null);
++        int columnIndex = cursor.getColumnIndex(column[0]);
++
++        if(cursor.moveToFirst()){
++            filePath = cursor.getString(columnIndex);
++        }
++        cursor.close();
++        return filePath;
++    }
++}
+Index: gradle.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1250
+===================================================================
+--- gradle.properties	(revision )
++++ gradle.properties	(revision )
+@@ -0,0 +1,17 @@
++# Project-wide Gradle settings.
++
++# IDE (e.g. Android Studio) users:
++# Gradle settings configured through the IDE *will override*
++# any settings specified in this file.
++
++# For more details on how to configure your build environment visit
++# http://www.gradle.org/docs/current/userguide/build_environment.html
++
++# Specifies the JVM arguments used for the daemon process.
++# The setting is particularly useful for tweaking memory settings.
++org.gradle.jvmargs=-Xmx1024m
++
++# When configured, Gradle will run in incubating parallel mode.
++# This option should only be used with decoupled projects. More details, visit
++# http://www.gradle.org/docs/current/userguide/multi_project_builds.html#sec:decoupled_projects
++# org.gradle.parallel=true
+Index: app/src/main/res/values/styles.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/res/values/styles.xml	(revision )
++++ app/src/main/res/values/styles.xml	(revision )
+@@ -0,0 +1,11 @@
++<resources>
++
++    <!-- Base application theme. -->
++    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
++        <!-- Customize your theme here. -->
++        <item name="colorPrimary">@color/colorPrimary</item>
++        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
++        <item name="colorAccent">@color/colorAccent</item>
++    </style>
++
++</resources>
+Index: app/src/main/java/pl/arcube/arcube/Cube.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/pl/arcube/arcube/Cube.java	(revision )
++++ app/src/main/java/pl/arcube/arcube/Cube.java	(revision )
+@@ -0,0 +1,165 @@
++package pl.arcube.arcube;
++
++import android.content.Context;
++import android.graphics.Bitmap;
++import android.graphics.BitmapFactory;
++import android.opengl.GLUtils;
++
++import java.nio.ByteBuffer;
++import java.nio.ByteOrder;
++import java.nio.FloatBuffer;
++
++import javax.microedition.khronos.opengles.GL10;
++
++/**
++ * Created by Maciej Szalek on 2018-09-12.
++ */
++
++public class Cube {
++
++    private FloatBuffer vertexBuffer;  // Vertex Buffer
++    private FloatBuffer texBuffer;     // Texture Coords Buffer
++    private int numFaces = 6;
++    public String[] imageFileIDs = new String[numFaces];
++    private int[] textureIDs = new int[numFaces];
++    private Bitmap[] bitmap = new Bitmap[numFaces];
++    private float cubeHalfSize = 0.99f;
++
++    // Constructor - Set up the vertex buffer
++    public Cube(Context context, PhotoImage photoImage) {
++        for(int i=0; i<numFaces; i++){
++            imageFileIDs[i] = photoImage.getPhotoImage();
++        }
++
++        // Allocate vertex buffer. An float has 4 bytes
++        ByteBuffer vbb = ByteBuffer.allocateDirect(12 * 4 * numFaces);
++        vbb.order(ByteOrder.nativeOrder());
++        vertexBuffer = vbb.asFloatBuffer();
++
++        // Read images. Find the aspect ratio and adjust the vertices accordingly.
++        for (int face = 0; face < numFaces; face++) {
++
++            BitmapFactory.Options options = new BitmapFactory.Options();
++            options.inJustDecodeBounds = false;
++            options.inSampleSize = 5;
++            bitmap[face] = BitmapFactory.decodeFile(imageFileIDs[face], options);
++
++            // To reduce bitmaps asymmetry: (width = height)
++            int imgWidth = bitmap[face].getHeight();
++            int imgHeight = bitmap[face].getHeight();
++
++            float faceWidth = 2.0f;
++            float faceHeight = 2.0f;
++            // Adjust for aspect ratio
++            if (imgWidth > imgHeight) {
++                faceHeight = faceHeight * imgHeight / imgWidth;
++            } else {
++                faceWidth = faceWidth * imgWidth / imgHeight;
++            }
++            float faceLeft = -faceWidth / 2;
++            float faceRight = -faceLeft;
++            float faceTop = faceHeight / 2;
++            float faceBottom = -faceTop;
++
++            // Define the vertices for this face
++            float[] vertices = {
++                    faceLeft,  faceBottom, 0.0f,  // 0. left-bottom-front
++                    faceRight, faceBottom, 0.0f,  // 1. right-bottom-front
++                    faceLeft,  faceTop,    0.0f,  // 2. left-top-front
++                    faceRight, faceTop,    0.0f,  // 3. right-top-front
++            };
++            vertexBuffer.put(vertices);  // Populate
++        }
++        vertexBuffer.position(0);    // Rewind
++
++        // Allocate texture buffer. An float has 4 bytes. Repeat for 6 faces.
++        float[] texCoords = {
++                0.0f, 1.0f,  // A. left-bottom
++                1.0f, 1.0f,  // B. right-bottom
++                0.0f, 0.0f,  // C. left-top
++                1.0f, 0.0f   // D. right-top
++        };
++        ByteBuffer tbb = ByteBuffer.allocateDirect(texCoords.length * 4 * numFaces);
++        tbb.order(ByteOrder.nativeOrder());
++        texBuffer = tbb.asFloatBuffer();
++        for (int face = 0; face < numFaces; face++) {
++            texBuffer.put(texCoords);
++        }
++        texBuffer.position(0);   // Rewind
++    }
++
++    // Render the shape
++    public void draw(GL10 gl) {
++        gl.glFrontFace(GL10.GL_CCW);
++
++        gl.glEnableClientState(GL10.GL_VERTEX_ARRAY);
++        gl.glEnableClientState(GL10.GL_TEXTURE_COORD_ARRAY);
++        gl.glVertexPointer(3, GL10.GL_FLOAT, 0, vertexBuffer);
++        gl.glTexCoordPointer(2, GL10.GL_FLOAT, 0, texBuffer);
++
++        // front
++        gl.glPushMatrix();
++        gl.glTranslatef(0f, 0f, cubeHalfSize);
++        gl.glBindTexture(GL10.GL_TEXTURE_2D, textureIDs[0]);
++        gl.glDrawArrays(GL10.GL_TRIANGLE_STRIP, 0, 4);
++        gl.glPopMatrix();
++
++        // left
++        gl.glPushMatrix();
++        gl.glRotatef(270.0f, 0f, 1f, 0f);
++        gl.glTranslatef(0f, 0f, cubeHalfSize);
++        gl.glBindTexture(GL10.GL_TEXTURE_2D, textureIDs[1]);
++        gl.glDrawArrays(GL10.GL_TRIANGLE_STRIP, 4, 4);
++        gl.glPopMatrix();
++
++        // back
++        gl.glPushMatrix();
++        gl.glRotatef(180.0f, 0f, 1f, 0f);
++        gl.glTranslatef(0f, 0f, cubeHalfSize);
++        gl.glBindTexture(GL10.GL_TEXTURE_2D, textureIDs[2]);
++        gl.glDrawArrays(GL10.GL_TRIANGLE_STRIP, 8, 4);
++        gl.glPopMatrix();
++
++        // right
++        gl.glPushMatrix();
++        gl.glRotatef(90.0f, 0f, 1f, 0f);
++        gl.glTranslatef(0f, 0f, cubeHalfSize);
++        gl.glBindTexture(GL10.GL_TEXTURE_2D, textureIDs[3]);
++        gl.glDrawArrays(GL10.GL_TRIANGLE_STRIP, 12, 4);
++        gl.glPopMatrix();
++
++        // top
++        gl.glPushMatrix();
++        gl.glRotatef(270.0f, 1f, 0f, 0f);
++        gl.glTranslatef(0f, 0f, cubeHalfSize);
++        gl.glBindTexture(GL10.GL_TEXTURE_2D, textureIDs[4]);
++        gl.glDrawArrays(GL10.GL_TRIANGLE_STRIP, 16, 4);
++        gl.glPopMatrix();
++
++        // bottom
++        gl.glPushMatrix();
++        gl.glRotatef(90.0f, 1f, 0f, 0f);
++        gl.glTranslatef(0f, 0f, cubeHalfSize);
++        gl.glBindTexture(GL10.GL_TEXTURE_2D, textureIDs[5]);
++        gl.glDrawArrays(GL10.GL_TRIANGLE_STRIP, 20, 4);
++        gl.glPopMatrix();
++
++        gl.glDisableClientState(GL10.GL_VERTEX_ARRAY);
++        gl.glDisableClientState(GL10.GL_TEXTURE_COORD_ARRAY);
++    }
++
++    // Load images into 6 GL textures
++    public void loadTexture(GL10 gl) {
++        gl.glGenTextures(6, textureIDs, 0); // Generate texture-ID array for 6 IDs
++
++        // Generate OpenGL texture images
++        for (int face = 0; face < numFaces; face++) {
++            gl.glBindTexture(GL10.GL_TEXTURE_2D, textureIDs[face]);
++            gl.glTexParameterf(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MIN_FILTER, GL10.GL_NEAREST);
++            gl.glTexParameterf(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MAG_FILTER, GL10.GL_LINEAR);
++            // Build Texture from loaded bitmap for the currently-bind texture ID
++            GLUtils.texImage2D(GL10.GL_TEXTURE_2D, 0, bitmap[face], 0);
++            bitmap[face].recycle();
++        }
++    }
++}
+Index: .idea/modules.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- .idea/modules.xml	(revision )
++++ .idea/modules.xml	(revision )
+@@ -0,0 +1,9 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project version="4">
++  <component name="ProjectModuleManager">
++    <modules>
++      <module fileurl="file://$PROJECT_DIR$/ArCube.iml" filepath="$PROJECT_DIR$/ArCube.iml" />
++      <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
++    </modules>
++  </component>
++</project>
+\ No newline at end of file
+Index: .idea/gradle.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- .idea/gradle.xml	(revision )
++++ .idea/gradle.xml	(revision )
+@@ -0,0 +1,18 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project version="4">
++  <component name="GradleSettings">
++    <option name="linkedExternalProjectsSettings">
++      <GradleProjectSettings>
++        <option name="distributionType" value="DEFAULT_WRAPPED" />
++        <option name="externalProjectPath" value="$PROJECT_DIR$" />
++        <option name="modules">
++          <set>
++            <option value="$PROJECT_DIR$" />
++            <option value="$PROJECT_DIR$/app" />
++          </set>
++        </option>
++        <option name="resolveModulePerSourceSet" value="false" />
++      </GradleProjectSettings>
++    </option>
++  </component>
++</project>
+\ No newline at end of file
+Index: app/src/main/AndroidManifest.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/AndroidManifest.xml	(revision )
++++ app/src/main/AndroidManifest.xml	(revision )
+@@ -0,0 +1,27 @@
++<?xml version="1.0" encoding="utf-8"?>
++<manifest xmlns:android="http://schemas.android.com/apk/res/android"
++    package="pl.arcube.arcube">
++
++    <uses-permission android:name="android.permission.CAMERA" />
++    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
++
++    <uses-feature android:name="android.hardware.Camera" />
++
++    <application
++        android:allowBackup="true"
++        android:icon="@mipmap/ic_launcher"
++        android:label="@string/app_name"
++        android:roundIcon="@mipmap/ic_launcher_round"
++        android:supportsRtl="true"
++        android:theme="@style/AppTheme">
++        <activity android:name=".StartActivity">
++            <intent-filter>
++                <action android:name="android.intent.action.MAIN" />
++
++                <category android:name="android.intent.category.LAUNCHER" />
++            </intent-filter>
++        </activity>
++        <activity android:name=".ArActivity" />
++    </application>
++
++</manifest>
+\ No newline at end of file
+Index: app/src/main/java/pl/arcube/arcube/ArActivity.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/pl/arcube/arcube/ArActivity.java	(revision )
++++ app/src/main/java/pl/arcube/arcube/ArActivity.java	(revision )
+@@ -0,0 +1,39 @@
++package pl.arcube.arcube;
++
++import android.graphics.PixelFormat;
++import android.opengl.GLSurfaceView;
++import android.support.v7.app.AppCompatActivity;
++import android.os.Bundle;
++import android.widget.RelativeLayout;
++
++public class ArActivity extends AppCompatActivity {
++
++    private CameraPreview cameraPreview;
++    private GLSurfaceView mGlSurfaceView;
++    private PhotoImage photoImage;
++    private RelativeLayout arLayout;
++    private String path;
++
++    @Override
++    protected void onCreate(Bundle savedInstanceState) {
++        super.onCreate(savedInstanceState);
++        setContentView(R.layout.ar_actvity);
++
++        arLayout = findViewById(R.id.ar_activity_layout);
++        mGlSurfaceView = findViewById(R.id.gl_surface_view);
++        cameraPreview = new CameraPreview(this);
++
++        path = getIntent().getStringExtra("PATH");
++
++        photoImage = new PhotoImage();
++        photoImage.setPhotoImage(path);
++
++        mGlSurfaceView.setEGLConfigChooser(8, 8, 8, 8, 16, 0);
++        mGlSurfaceView.setZOrderOnTop(true);
++        mGlSurfaceView.setRenderer(new GLRenderer(true, this.getApplicationContext(), photoImage));
++        mGlSurfaceView.getHolder().setFormat(PixelFormat.RGBA_8888);
++
++        arLayout.addView(cameraPreview);
++
++    }
++}
+Index: build.gradle
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- build.gradle	(revision )
++++ build.gradle	(revision )
+@@ -0,0 +1,23 @@
++// Top-level build file where you can add configuration options common to all sub-projects/modules.
++
++buildscript {
++    repositories {
++        jcenter()
++    }
++    dependencies {
++        classpath 'com.android.tools.build:gradle:2.3.3'
++    }
++}
++
++allprojects {
++    repositories {
++        jcenter()
++        maven{
++            url "https://maven.google.com"
++        }
++    }
++}
++
++task clean(type: Delete) {
++    delete rootProject.buildDir
++}
